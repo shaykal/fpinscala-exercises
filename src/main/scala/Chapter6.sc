@@ -132,7 +132,7 @@ object StateObj {
 
 }
 
-// exerciwe 6.10
+// exercise 6.10
 import State._
 
 type StateType[S,+A] = S => (A,S)
@@ -156,10 +156,47 @@ object State {
   def sequence[S,A](fs: List[State[S, A]]): State[S, List[A]] = {
     fs.foldRight[State[S, List[A]]](unit(List()))((a: State[S, A], b: State[S, List[A]]) => a.map2(b)(_ :: _))
   }
+
+  def modify[S](f: S => S): State[S, Unit] = for {
+    s <- get
+    _ <- set(f(s))
+  } yield ()
+
+  def get[S]: State[S, S] = State(s => (s, s))
+  def set[S](s: S): State[S, Unit] = State(_ => ((), s))
 }
+
+
+
+// exercise 6.11
+sealed trait Input
+case object Coin extends Input
+case object Turn extends Input
+case class Machine(locked: Boolean, candies: Int, coins: Int) {
+
+  def interact(input: Input) : Machine = input match {
+    case Coin if locked && candies > 0 => new Machine(false, candies, coins + 1)
+    case Turn if !locked => new Machine(true, candies - 1, coins)
+    case _ => this
+  }
+
+}
+
+object CandyDispenser {
+  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = for {
+    _ <- sequence(inputs.map(input => modify[Machine](_.interact(input))))
+    machine <- get
+  } yield (machine.coins, machine.candies)
+}
+
+
+
 
 val nonNegatives = StateObj.nonNegativeInt(StateObj.SimpleRNG(1000L))
 StateObj.ints(3)(nonNegatives._2)
 StateObj.double(nonNegatives._2)
 
 StateObj.double2.apply(nonNegatives._2)
+
+val machine = new Machine(true, 10, 5)
+CandyDispenser.simulateMachine(List(Coin, Turn, Coin, Turn, Coin, Turn, Coin, Turn))
