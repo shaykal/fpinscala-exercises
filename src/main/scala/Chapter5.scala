@@ -1,3 +1,5 @@
+package main.scala
+
 sealed trait Stream[+A] {
 
   def headOption: Option[A] = this match {
